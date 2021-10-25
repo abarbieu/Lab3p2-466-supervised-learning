@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[3]:
+
+
 import numpy as np
 import pandas as pd
 import math
@@ -5,43 +11,9 @@ import json
 import sys
 import time
 
-def calcNumEntropy(data, attr):
-    pass
 
-def findBestSplit(data, attrs, x, ):
-    p0 = entropy(data.iloc[:, -1])
-    k = len(data.iloc[:, -1].unique()) # num unique labels 
-    labelCol = data.columns[-1]
-    gain = {}
-    
-    # initializing array counts
-    arrayCounts = {}
-    for j in range(len(k)):
-        arrayCounts[j] = {}
-        
-#     for a in attrs:
-#         for j in range(len(k)):
-    pass
-            
-    
+# In[6]:
 
-def selectSplittingAttr(attrs, data, threshold):
-    p0 = entropy(data.iloc[:,-1])
-    gain={}
-    for a in attrs:
-        p = 0
-#         if isNumeric()
-#             x = findBestSplit(data, a)
-#             p = entropyAttr(data, a, x)
-#         else:
-#             p = entropyAttr(data, a)
-        gain[a] = p0 - entropyAttr(data, a) # info gain
-    
-    bestAttr=max(gain,key=gain.get)
-    if gain[bestAttr] > threshold:
-        return bestAttr
-    else:
-        return None
 
 # entropy of a series of data
 def entropy(classcol):
@@ -60,10 +32,83 @@ def entropyAttr(data, attr):
         entropyTot += (vals[c].count()/len(data)) * entropy(vals[c])
     return entropyTot
 
-    # class must be in last column
+# entropy of a series of data
+def entropyValCounts(vals):
+    size=0
+    for v in vals:
+        size += v
+        
+    entropy=0
+    for v in vals:
+        entropy -= (v/size) * math.log(v/size,2)
+    return entropy
+
+def splitEntropy(le, gt):
+    sizeLe = 0
+    for v in le:
+        sizeLe += v
+    sizeGt = 0
+    
+    for v in gt:
+        sizeGt += v
+    
+    size = sizeLe+sizeGt
+    
+    return sizeLe/size * entropyValCounts(le) + sizeGt/size * entropyValCounts(gt)
+    
+def calcGainBetter(data,attr,p0):
+    vals = data[attr].unique()
+    
+    bestSplit = None
+    bestGain = 0.0
+    for v in vals:
+        le = data[data[attr] <= v].iloc[:,-1].value_counts()
+        gt = data[data[attr] > v].iloc[:,-1].value_counts()
+        
+        splitGain = p0 - splitEntropy(le,gt)
+        if splitGain > bestGain:
+            bestGain = splitGain
+            bestSplit = v
+            
+    return bestSplit, bestGain
+
+def findBestSplit(data, attr, p0):
+    return calcGainBetter(data, attr, p0)
+
+
+# In[13]:
+
+
+def selectSplittingAttr(attrs, data, threshold):
+    p0 = entropy(data.iloc[:,-1])
+    bestGain = 0
+    alpha = None
+    bestAttr = None
+    
+    for a in attrs:
+        tmpAlpha=None
+        tmpGain=0
+        if attrs[a] < 1: # if attr is numeric
+            tmpAlpha, tmpGain = findBestSplit(data, a, p0)
+        else:
+            tmpGain = p0 - entropyAttr(data, a)
+        if tmpGain > bestGain:
+            bestAttr = a
+            bestGain = tmpGain
+            alpha = tmpAlpha
+    
+    if bestGain > threshold:
+        return bestAttr, alpha
+    else:
+        return None, None
+
+
+# In[26]:
+
+
+# class must be in last column
 def c45(data, attrs, thresh):
     # base case 1
-    #print(data)
     classes = data.iloc[:,-1]
     firstclass = None
     allsame=True
@@ -94,13 +139,13 @@ def c45(data, attrs, thresh):
         return {"leaf": pluralityClass}                 # create leaf node with most frequent class
     
     # select splitting attr
-#     asplit = selectSplittingAttr(attrs, data, thresh)
-    if asplit == None:
+    asplit, alpha = selectSplittingAttr(attrs, data, thresh)
+    if asplit is None:
         pluralityClass.update({"type": "threshold"})
         return {"leaf": pluralityClass}
         
-    else:
-        attrs.remove(asplit)
+    elif alpha is None:
+        attrs.pop(asplit)
         newNode = {"node": {"var": asplit, "plurality": pluralityClass, "edges": []}}
         possibleValues = data[asplit].unique()                # gets unique values in column
         
@@ -113,7 +158,30 @@ def c45(data, attrs, thresh):
                 edge = {"value": value}
                 edge.update(subtree)
                 newNode["node"]["edges"].append({"edge": edge})
+        
         return newNode
+    else:
+        le = data[data[asplit] <= alpha]
+        gt = data[data[asplit] > alpha]
+        
+        leTree = c45(le, attrs, thresh)
+        gtTree = c45(gt, attrs, thresh)
+        
+        leEdge = {"value": alpha, "direction": "le"}
+        gtEdge = {"value": alpha, "direction": "gt"}
+        
+        leEdge.update(leTree)
+        gtEdge.update(gtTree)
+        
+        newNode = {"node": {"var": asplit, "edges": [
+            {"edge": leEdge},
+            {"edge": gtEdge},
+        ]}}
+        
+        return newNode
+
+# In[28]:
+
 
 # Reads a training set csv file and a restrictions vector text file, returns arranged training set          
 def readFiles(filename=None, restrictions=None):
@@ -136,7 +204,7 @@ def readFiles(filename=None, restrictions=None):
     
     attrs = {}
     for a in df.columns:
-        attrs[a] = df[a][1]
+        attrs[a] = int(df[a][0])
     
     isLabeled = True
     if not isinstance(aclass, str):
@@ -148,15 +216,16 @@ def readFiles(filename=None, restrictions=None):
                 df = df.drop(columns=[v])
     if isLabeled:
         df = df[[c for c in df if c not in [aclass]] + [aclass]]
+        
+    attrs.pop(df.columns[-1])
     return df, filename, isLabeled, attrs
 
 # runs c45 with data from file of name training data with restrictions in filename restrictions
 def induceC45(trainingData=None, restrictions=None, threshold=0.2):
-    df,filename,tmp, attrs = readFiles(trainingData, restrictions)
-    print(attrs)
-#     tree={"dataset": filename}
-#     tree.update(c45(df, df.columns[:-1].tolist(), threshold))
-#     return tree
+    df, filename, tmp, attrs = readFiles(trainingData, restrictions)
+    tree={"dataset": filename}
+    tree.update(c45(df, attrs, threshold))
+    return tree
 
 
 # prints a decision tree
@@ -165,6 +234,6 @@ def printTree(tree):
         json.dump(tree, f)
     print(json.dumps(tree, sort_keys=False, indent=2))
     
-
 if __name__ == "__main__":
-    printTree(induceC45(threshold=0))
+    printTree(induceC45())
+

@@ -59,12 +59,19 @@ def traverseTree(row, tree, nodeType):
         return tree["decision"]        
         
     elif nodeType == "node":
-        val = row[tree["var"]]
+        attrVal = row[tree["var"]]
         for obj in tree["edges"]:
-            if obj["edge"]["value"] == "DEFAULT":
-                plurality = obj["edge"]["leaf"]["decision"]
-            if obj["edge"]["value"] == val:
-                newType = "leaf" if "leaf" in obj["edge"].keys() else "node"
+            newType = "leaf" if "leaf" in obj["edge"].keys() else "node"
+            
+            if "direction" in obj["edge"].keys(): # edge is numeric
+                
+                if obj["edge"]["direction"] == "le" and attrVal <= obj["edge"]["value"]: # data is <= alpha
+                    return traverseTree(row, obj["edge"][newType], newType)
+                 
+                elif obj["edge"]["direction"] == "gt" and attrVal > obj["edge"]["value"]: # data is > alpha
+                    return traverseTree(row, obj["edge"][newType], newType)
+                
+            elif obj["edge"]["value"] == attrVal: # if attribute value matches edge
                 return traverseTree(row, obj["edge"][newType], newType)
         return tree["plurality"]["decision"]
 
@@ -117,7 +124,9 @@ def classify(vals, confusion, data, tree, silent=False, labeled=False, isPrinted
             print("Total Classified Incorrectly: ", numErrors)
             print("Accuracy: ", accuracy)
             print("Error Rate: ", errorRate)
-            print(confusion)
+            print("\nConfusion Matrix: ")
+            print("Actual \u2193, Predicted \u2192")
+            print(confusion,'\n')
     
     if silent:
         return out
