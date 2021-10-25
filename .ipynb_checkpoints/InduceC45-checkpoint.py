@@ -107,7 +107,7 @@ def selectSplittingAttr(attrs, data, threshold):
 
 
 # class must be in last column
-def c45(data, attrs, thresh):
+def c45(data, attrs, thresh, space=""):
     # base case 1
     classes = data.iloc[:,-1]
     firstclass = None
@@ -139,33 +139,41 @@ def c45(data, attrs, thresh):
         return {"leaf": pluralityClass}                 # create leaf node with most frequent class
     
     # select splitting attr
+    tic=time.process_time()
+    
     asplit, alpha = selectSplittingAttr(attrs, data, thresh)
+#     print(space, asplit, alpha)
+    
+#     print('split:', time.process_time() - tic)
     if asplit is None:
         pluralityClass.update({"type": "threshold"})
         return {"leaf": pluralityClass}
         
     elif alpha is None:
+        
         attrs.pop(asplit)
         newNode = {"node": {"var": asplit, "plurality": pluralityClass, "edges": []}}
         possibleValues = data[asplit].unique()                # gets unique values in column
+        
         
         for value in possibleValues:
             tic=time.clock()
             relatedData = data[(data == value).any(axis = 1)] # take rows that have that value
             
             if len(relatedData.columns) != 0:
-                subtree = c45(relatedData, attrs, thresh) 
+                subtree = c45(relatedData, attrs, thresh, space + "  ") 
                 edge = {"value": value}
                 edge.update(subtree)
                 newNode["node"]["edges"].append({"edge": edge})
-        
+                
         return newNode
     else:
+        
         le = data[data[asplit] <= alpha]
         gt = data[data[asplit] > alpha]
         
-        leTree = c45(le, attrs, thresh)
-        gtTree = c45(gt, attrs, thresh)
+        leTree = c45(le, attrs, thresh, space + "  ")
+        gtTree = c45(gt, attrs, thresh, space + "  ")
         
         leEdge = {"value": alpha, "direction": "le"}
         gtEdge = {"value": alpha, "direction": "gt"}

@@ -26,11 +26,11 @@ def getArgs():
         k = sys.argv[2]
         restr = sys.argc[3]
     
-    df,tmp,isLabeled = readFiles(file1,restr)
+    df, tmp, isLabeled, attrs = readFiles(file1,restr)
     
-    return df, int(k), isLabeled
+    return df, int(k), isLabeled, attrs
 
-def predict_kfold(df, numSplits, threshold, isLabeled):
+def predict_kfold(df, numSplits, threshold, isLabeled, attrs):
     prev=None
     kfoldPreds = []
     accCorr = [0, 0]
@@ -42,7 +42,7 @@ def predict_kfold(df, numSplits, threshold, isLabeled):
     
     # split dataset kfold and generate predictions
     if numSplits <= 1:
-        kfoldPreds += classify(accCorr, confusion, df, c45(df, df.columns[:-1].tolist(), threshold), silent=True, 
+        kfoldPreds += classify(accCorr, confusion, df, c45(df, attrs, threshold), silent=True, 
                                labeled=isLabeled)
     else:
         splitnum=0
@@ -54,13 +54,13 @@ def predict_kfold(df, numSplits, threshold, isLabeled):
             else:
                 trainingData = pd.concat([df[:prev], df[i:]])
                 classifyData = df[prev:i]
-                tree=c45(trainingData, df.columns[:-1].tolist(), threshold)
+                tree=c45(trainingData, attrs, threshold)
                 kfoldPreds += classify(accCorr, confusion, classifyData, tree, silent=True, labeled=isLabeled)
                 prev=i
         
         trainingData = df[:prev]
         classifyData = df[prev:]
-        kfoldPreds += classify(accCorr, confusion, classifyData, c45(trainingData, df.columns[:-1].tolist(), threshold), silent=True, 
+        kfoldPreds += classify(accCorr, confusion, classifyData, c45(trainingData, attrs, threshold), silent=True, 
                                labeled=isLabeled)
     
     ret = pd.DataFrame(kfoldPreds, columns=['index', 'prediction']).set_index('index')
@@ -70,10 +70,12 @@ def predict_kfold(df, numSplits, threshold, isLabeled):
     print(f"-----Ran {numSplits}-fold cross-validation-----")
     print("Overall Accuracy: ", accCorr[1]/len(ret))
     print("Average Accuracy: ", accCorr[0]/numSplits)
-    print("Confusion Matrix:\n", confusion)
+    print("\nConfusion Matrix: ")
+    print("Actual \u2193, Predicted \u2192")
+    print(confusion,'\n')
     return ret
 
 
 if __name__ == '__main__':
-    df, k, isLabeled = getArgs()
-    print(predict_kfold(df, k, 0.2, isLabeled))
+    df, k, isLabeled, attrs = getArgs()
+    print(predict_kfold(df, k, 0.2, isLabeled, attrs))
