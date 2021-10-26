@@ -10,44 +10,47 @@ import math
 import json
 import sys
 from InduceC45 import c45, readFiles
-from classifier import classify, readArrange, initializeConfusion
+from classifier import classify, evaluate, initializeConfusion
 
 # In[85]:
 def getArgs():
-    restr=None
+    restrfile = None
+    thresh = 0.2
     if len(sys.argv) < 3:
         print("Not enough arguments.")
         exit(1)
     elif len(sys.argv) == 3:
-        file1 = sys.argv[1]
-        k = sys.argv[2]
+        _, datafile, k = sys.argv
     elif len(sys.argv) == 4:
-        file1 = sys.argv[1]
-        k = sys.argv[2]
-        restr = sys.argc[3]
+        _, datafile, k, thresh = sys.argv
+    elif len(sys.argv) == 5:
+        _, datafile, k, thresh, restrfile = sys.argv
+    else:
+        print("Usage: python3 validation.py <datafile.csv> <k> [threshold=0.2] [restrictions.txt]")
+        print("(threshold necessary if giving restrictions)")
     
-    df, tmp, isLabeled, attrs = readFiles(file1,restr)
+    df, tmp, isLabeled, attrs = readFiles(datafile,restrfile)
     
-    return df, int(k), isLabeled, attrs
+    return df, int(k), isLabeled, attrs, thresh
 
 def predict_kfold(df, numSplits, threshold, isLabeled, attrs):
     prev=None
     kfoldPreds = []
-    accCorr = [0, 0]
-    confusion = initializeConfusion(df)
-    
+    cumOutput = None
+    accuracies = []
     # all but one cross validation
     if numSplits == -1:
         numSplits = len(df)-1
     
     # split dataset kfold and generate predictions
     if numSplits <= 1:
-        kfoldPreds += classify(accCorr, confusion, df, c45(df, attrs, threshold), silent=True, 
-                               labeled=isLabeled)
+        res, acc= classify(df, c45(df, attrs, threshold), asList=True, getAccuracy=True)
+        kfoldPreds += res
+        accuracies.append(acc)
     else:
         splitnum=0
         # go through indecies by fold length
-        for i in range(0,len(df),int(len(df)/numSplits)):
+        for i in range(0, len(df), int(len(df)/numSplits)):
             splitnum+=1
             if prev is None:
                 prev=i
@@ -55,27 +58,36 @@ def predict_kfold(df, numSplits, threshold, isLabeled, attrs):
                 trainingData = pd.concat([df[:prev], df[i:]])
                 classifyData = df[prev:i]
                 tree=c45(trainingData, attrs, threshold)
-                kfoldPreds += classify(accCorr, confusion, classifyData, tree, silent=True, labeled=isLabeled)
+                
+                res, acc= classify(classifyData, tree, asList=True, getAccuracy=True)
+                kfoldPreds += res
+                accuracies.append(acc)
                 prev=i
         
         trainingData = df[:prev]
         classifyData = df[prev:]
-        kfoldPreds += classify(accCorr, confusion, classifyData, c45(trainingData, attrs, threshold), silent=True, 
-                               labeled=isLabeled)
+        res, acc= classify(classifyData, c45(trainingData, attrs, threshold), asList=True, getAccuracy=True)
+        kfoldPreds += res
+        accuracies.append(acc)
     
-    ret = pd.DataFrame(kfoldPreds, columns=['index', 'prediction']).set_index('index')
-    ret['actual'] = df.loc[:,df.columns[-1]:]
+    print("split accuracies:", accuracies, np.sum(accuracies))
+    results = evaluate(df, kfoldPreds, asList=True)
     
-    print()
-    print(f"-----Ran {numSplits}-fold cross-validation-----")
-    print("Overall Accuracy: ", accCorr[1]/len(ret))
-    print("Average Accuracy: ", accCorr[0]/numSplits)
-    print("\nConfusion Matrix: ")
-    print("Actual \u2193, Predicted \u2192")
-    print(confusion,'\n')
-    return ret
+    print("Average Accuracy:", np.sum(accuracies)/numSplits)
+    for v in results:
+        print(v, ":", results[v])
+#     ret['actual'] = df.loc[:,df.columns[-1]:]
+    
+#     print()
+#     print(f"-----Ran {numSplits}-fold cross-validation-----")
+#     print("Overall Accuracy: ", accCorr[1]/len(ret))
+#     print("Average Accuracy: ", accCorr[0]/numSplits)
+#     print("\nConfusion Matrix: ")
+#     print("Actual \u2193, Predicted \u2192")
+#     print(confusion,'\n')
+#     return ret
 
 
 if __name__ == '__main__':
-    df, k, isLabeled, attrs = getArgs()
-    print(predict_kfold(df, k, 0.2, isLabeled, attrs))
+    df, k, isLabeled, attrs, thresh = getArgs()
+    print(predict_kfold(df, k, thresh, isLabeled, attrs))

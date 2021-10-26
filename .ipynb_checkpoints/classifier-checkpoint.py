@@ -41,7 +41,7 @@ def initializeConfusion(df):
     confusion = pd.DataFrame(zeros, labels, labels)
     return confusion
 
-def classifySimple(df, tree):
+def classify(df, tree, asList=False, getAccuracy=False):
     predictions = []
     keys = list(tree)
     
@@ -49,11 +49,45 @@ def classifySimple(df, tree):
         prediction = traverseTree(row, tree[keys[-1]], keys[-1])
       
         predictions.append([i, prediction])
-    return pd.DataFrame(predictions, columns=['index', 'prediction']).set_index('index')
+    
+    preddf=None
+    accuracy = None
+    
+    if getAccuracy or not asList:
+        preddf = pd.DataFrame(predictions, columns=['index', 'prediction']).set_index('index')
+    
+    if getAccuracy:
+       
+        numCorrect=0
+        numClassified=0
+        for i, row in df.iterrows():
+            if preddf.loc[i,"prediction"] == row[df.columns[-1]]:
+                numCorrect += 1
+            numClassified += 1
+            
+        accuracy = numCorrect/numClassified
+            
+    if asList:
+        return predictions, accuracy
+    else:
+        return preddf, accuracy
 
-def evaluate(df, preds):
-    confusion = initializeConfusion(df)
-    numErrors, numCorrect, totalClassified = 0, 0, 0
+def evaluate(df, preds, prevOutput=None, asList=False):
+    if asList:
+        preds = pd.DataFrame(preds, columns=['index', 'prediction']).set_index('index')
+        
+    output = prevOutput
+    numErrors, numCorrect, numClassified = 0, 0, 0
+    confusion = None
+    
+    if prevOutput is not None:
+        numErrors += prevOutput["numErrors"]
+        numCorrect += prevOutput["numCorrect"]
+        numClassified += prevOutput["numClassified"]
+        confusion = prevOutput["confusion"]
+    else:
+        confusion = initializeConfusion(df)
+        
     for i, row in df.iterrows():
         prediction = preds.loc[i,"prediction"]
         actual = row[df.columns[-1]]
@@ -65,13 +99,14 @@ def evaluate(df, preds):
         else:
             numCorrect += 1
 
-        totalClassified += 1
+        numClassified += 1
         
     results = df.join(preds)
     
-    return {"accuracy": numCorrect / totalClassified,
-          "errorRate": numErrors / totalClassified,
-          "numClassified": totalClassified,
+    
+    return {"accuracy": numCorrect / numClassified,
+          "errorRate": numErrors / numClassified,
+          "numClassified": numClassified,
           "numCorrect": numCorrect,
           "numErrors": numErrors,
           "confusionLabel": "Actual \u2193, Predicted \u2192",
