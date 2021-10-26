@@ -10,7 +10,7 @@ from classifier import classify, readArrange, initializeConfusion
 def getArgs():
     restr=None
     if len(sys.argv) != 6:
-        print("Not enough arguments. format: python3 randomForest.py datafile.csv m k N outputFileName.csv")
+        print("Usage: python3 randomForest.py <datafile.csv> <m> <k> <N> <outputFileName.csv>")
         exit(1)
     else:
         _, datafile, m, k, N, outputfile = sys.argv
