@@ -70,10 +70,12 @@ def calcGainBetter(data,attr,p0):
             bestGain = splitGain
             bestSplit = v
             
-    return bestSplit, bestGain
+    return float(bestSplit), float(bestGain)
 
 def findBestSplit(data, attr, p0):
-    return calcGainBetter(data, attr, p0)
+    out=calcGainBetter(data, attr, p0)
+    print(attr,'out:',out)
+    return out
 
 
 # In[13]:
@@ -96,7 +98,7 @@ def selectSplittingAttr(attrs, data, threshold):
             bestAttr = a
             bestGain = tmpGain
             alpha = tmpAlpha
-    
+    print(bestGain)
     if bestGain > threshold:
         return bestAttr, alpha
     else:
@@ -130,7 +132,7 @@ def c45(data, attrs, thresh, space=""):
     
     pluralityClass = {
         "decision": classes.mode()[0],
-        "p": classes.value_counts()[classes.mode()][0]/len(classes)
+        "p": classes.value_counts()[classes.mode()[0]]/len(classes)
     }
     
     # base case 2
@@ -157,7 +159,6 @@ def c45(data, attrs, thresh, space=""):
         
         
         for value in possibleValues:
-            tic=time.clock()
             relatedData = data[(data == value).any(axis = 1)] # take rows that have that value
             
             if len(relatedData.columns) != 0:
@@ -193,6 +194,13 @@ def c45(data, attrs, thresh, space=""):
 
 # Reads a training set csv file and a restrictions vector text file, returns arranged training set          
 def readFiles(filename=None, restrictions=None):
+    #     if len(sys.argv) == 6:
+#         _, datafile, m, k, N, outputfile = sys.argv
+#     else if len(sys.argv) == 7:
+#         _, datafile, m, k, N, outputfile, thresh = sys.argv
+#     else:
+#         print("Usage: python3 randomForest.py <datafile.csv> <m> <k> <N> <outputFileName.csv> [thresh=0.2]")
+#         exit(1)   
     if filename is None and restrictions is None:
         if len(sys.argv) < 2:
             print("Not enough arguments.")
@@ -243,5 +251,5 @@ def printTree(tree):
     print(json.dumps(tree, sort_keys=False, indent=2))
     
 if __name__ == "__main__":
-    printTree(induceC45())
+    printTree(induceC45(threshold=0.1))
 

@@ -109,7 +109,7 @@ def evaluate(df, preds, prevOutput=None, asList=False):
           "numClassified": numClassified,
           "numCorrect": numCorrect,
           "numErrors": numErrors,
-          "confusionLabel": "Actual \u2193, Predicted \u2192",
+          "confusionLabel": "Predicted \u2192, Actual \u2193",
           "confusion": confusion,
           "results": results}    
 

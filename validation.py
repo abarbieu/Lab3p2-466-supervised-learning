@@ -31,7 +31,7 @@ def getArgs():
     
     df, tmp, isLabeled, attrs = readFiles(datafile,restrfile)
     
-    return df, int(k), isLabeled, attrs, thresh
+    return df, int(k), isLabeled, attrs, float(thresh)
 
 def predict_kfold(df, numSplits, threshold, isLabeled, attrs):
     prev=None
@@ -70,12 +70,12 @@ def predict_kfold(df, numSplits, threshold, isLabeled, attrs):
         kfoldPreds += res
         accuracies.append(acc)
     
-    print("split accuracies:", accuracies, np.sum(accuracies))
+#     print("split accuracies:", accuracies, np.sum(accuracies))
     results = evaluate(df, kfoldPreds, asList=True)
     
     print("Average Accuracy:", np.sum(accuracies)/numSplits)
     for v in results:
-        print(v, ":", results[v])
+        print(v, ":\n", results[v])
 #     ret['actual'] = df.loc[:,df.columns[-1]:]
     
 #     print()
