@@ -60,7 +60,7 @@ def calcGainBetter(data,attr,p0):
     vals = data[attr].unique()
     
     bestSplit = None
-    bestGain = 0.0
+    bestGain = -1
     for v in vals:
         le = data[data[attr] <= v].iloc[:,-1].value_counts()
         gt = data[data[attr] > v].iloc[:,-1].value_counts()
@@ -69,12 +69,11 @@ def calcGainBetter(data,attr,p0):
         if splitGain > bestGain:
             bestGain = splitGain
             bestSplit = v
-            
+    
     return float(bestSplit), float(bestGain)
 
 def findBestSplit(data, attr, p0):
     out=calcGainBetter(data, attr, p0)
-    print(attr,'out:',out)
     return out
 
 
@@ -98,7 +97,7 @@ def selectSplittingAttr(attrs, data, threshold):
             bestAttr = a
             bestGain = tmpGain
             alpha = tmpAlpha
-    print(bestGain)
+
     if bestGain > threshold:
         return bestAttr, alpha
     else:
@@ -141,12 +140,8 @@ def c45(data, attrs, thresh, space=""):
         return {"leaf": pluralityClass}                 # create leaf node with most frequent class
     
     # select splitting attr
-    tic=time.process_time()
-    
     asplit, alpha = selectSplittingAttr(attrs, data, thresh)
-#     print(space, asplit, alpha)
-    
-#     print('split:', time.process_time() - tic)
+
     if asplit is None:
         pluralityClass.update({"type": "threshold"})
         return {"leaf": pluralityClass}
@@ -169,7 +164,6 @@ def c45(data, attrs, thresh, space=""):
                 
         return newNode
     else:
-        
         le = data[data[asplit] <= alpha]
         gt = data[data[asplit] > alpha]
         
@@ -193,22 +187,7 @@ def c45(data, attrs, thresh, space=""):
 
 
 # Reads a training set csv file and a restrictions vector text file, returns arranged training set          
-def readFiles(filename=None, restrictions=None):
-    #     if len(sys.argv) == 6:
-#         _, datafile, m, k, N, outputfile = sys.argv
-#     else if len(sys.argv) == 7:
-#         _, datafile, m, k, N, outputfile, thresh = sys.argv
-#     else:
-#         print("Usage: python3 randomForest.py <datafile.csv> <m> <k> <N> <outputFileName.csv> [thresh=0.2]")
-#         exit(1)   
-    if filename is None and restrictions is None:
-        if len(sys.argv) < 2:
-            print("Not enough arguments.")
-            exit(1)
-        elif len(sys.argv) == 3:
-            restrictions = sys.argv[2]
-        filename = sys.argv[1]
-
+def readFiles(filename, restrictions=None):
     restr=None
     if restrictions != None:
         with open(restrictions) as r:
@@ -234,22 +213,28 @@ def readFiles(filename=None, restrictions=None):
         df = df[[c for c in df if c not in [aclass]] + [aclass]]
         
     attrs.pop(df.columns[-1])
+    for a in attrs:
+        if attrs[a] == 0:
+            df[a] = pd.to_numeric(df[a], errors='coerce')
+    df = df.dropna()
+    df = df[(df != '?').all(axis=1)]
     return df, filename, isLabeled, attrs
 
-# runs c45 with data from file of name training data with restrictions in filename restrictions
-def induceC45(trainingData=None, restrictions=None, threshold=0.2):
-    df, filename, tmp, attrs = readFiles(trainingData, restrictions)
-    tree={"dataset": filename}
-    tree.update(c45(df, attrs, threshold))
-    return tree
 
-
-# prints a decision tree
-def printTree(tree):
-    with open("tree.json", 'w') as f:
-        json.dump(tree, f)
-    print(json.dumps(tree, sort_keys=False, indent=2))
-    
 if __name__ == "__main__":
-    printTree(induceC45(threshold=0.1))
+    restrfile=None
+    if len(sys.argv) == 3:
+        _, datafile, thresh = sys.argv
+    elif len(sys.argv) == 4:
+        _, datafile, thresh, restrfile = sys.argv
+    else:
+        print("Usage: python3 InduceC45.py <datafile.csv> <threshold> [restrictions.txt]")
+        exit(1)
+    thresh=float(thresh)
+    df, filename, tmp, attrs = readFiles(datafile, restrfile)
+    
+    tree={"dataset": filename}
+    tree.update(c45(df, attrs, thresh))
+
+    print(json.dumps(tree, sort_keys=False, indent=2))
 

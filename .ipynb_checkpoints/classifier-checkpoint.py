@@ -69,8 +69,7 @@ def classify(df, tree, asList=False, getAccuracy=False):
             
     if asList:
         return predictions, accuracy
-    else:
-        return preddf, accuracy
+    return preddf, accuracy
 
 def evaluate(df, preds, prevOutput=None, asList=False):
     if asList:
@@ -109,7 +108,7 @@ def evaluate(df, preds, prevOutput=None, asList=False):
           "numClassified": numClassified,
           "numCorrect": numCorrect,
           "numErrors": numErrors,
-          "confusionLabel": "Predicted \u2192, Actual \u2193",
+          "confusionLabel": "Predicted \u2193, Actual \u2192",
           "confusion": confusion,
           "results": results}    
 
@@ -126,7 +125,7 @@ if __name__ == "__main__":
     with open(treefile) as tf:
         tree = json.load(tf)
     
-    preds = classifySimple(df, tree)
+    preds, acc = classify(df, tree)
     results = evaluate(df, preds)
     
     for v in results:

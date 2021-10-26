@@ -72,20 +72,12 @@ def predict_kfold(df, numSplits, threshold, isLabeled, attrs):
     
 #     print("split accuracies:", accuracies, np.sum(accuracies))
     results = evaluate(df, kfoldPreds, asList=True)
-    
+    print("Threshold:", threshold)
     print("Average Accuracy:", np.sum(accuracies)/numSplits)
     for v in results:
-        print(v, ":\n", results[v])
-#     ret['actual'] = df.loc[:,df.columns[-1]:]
-    
-#     print()
-#     print(f"-----Ran {numSplits}-fold cross-validation-----")
-#     print("Overall Accuracy: ", accCorr[1]/len(ret))
-#     print("Average Accuracy: ", accCorr[0]/numSplits)
-#     print("\nConfusion Matrix: ")
-#     print("Actual \u2193, Predicted \u2192")
-#     print(confusion,'\n')
-#     return ret
+        if v != 'results':
+            print(v, ":\n", results[v])
+    return results["results"]
 
 
 if __name__ == '__main__':
