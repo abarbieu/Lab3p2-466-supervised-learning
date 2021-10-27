@@ -1,0 +1,7 @@
+Accuracy of KNN with k = 9: 0.9600
+Confusion Matrix
+Predicted = Horizontal, Actual = Vertical
+                 Iris-setosa  Iris-versicolor  Iris-virginica
+Iris-setosa             50.0              0.0             0.0
+Iris-versicolor          0.0             47.0             3.0
+Iris-virginica           0.0              3.0            47.0

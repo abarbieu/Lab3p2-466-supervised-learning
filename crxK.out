@@ -1,0 +1,6 @@
+Accuracy of KNN with k = 8: 0.8790
+Confusion Matrix
+Predicted = Horizontal, Actual = Vertical
+       +      -
++  258.0   41.0
+-   38.0  316.0
