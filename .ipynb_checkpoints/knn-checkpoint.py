@@ -10,7 +10,6 @@ import sys
 from collections import Counter
 from classifier import initializeConfusion
 
-
 # normalizes all the numeric columns
 def normalizeNumeric(df, attrs):
     for a in attrs:
@@ -83,44 +82,35 @@ def getStats(confusion, predictions):
     accuracy = numCorrect / len(predictions)
     return accuracy
 
-
-# In[118]:
-
-
-# Euclidean distance = sqrt(sum((dist1 - dist2)^2)
-# the binarized categorical data is also used in this calculation
-def distance(d, x):
-    res = 0
-    
-    # iterate all the way up until the class label
-    for i in range(len(x)-1):
-        res += ((x[i] - d[i])**2)
-        
-    return res**(1/2)
-
 # returns the plurality class of the nearest neighbors
 def mostCommonLabel(data, neighborIndices):
     labels = [data.loc[i][data.columns[-1]] for i in neighborIndices]
     common = Counter(labels)
     return max(labels, key=common.get)
     
-def knn(data, k, x):
-    distances = {row.Index: distance(row, x) for row in data.itertuples() if not row.Index == x.Index}
-            
-    # sort the distances lowest to highest
-    distances = dict(sorted(distances.items(), key = lambda item: item[1]))
+def knn(data, dataMinusTag, k, x):
+    # performs Euclidean distance on all elements in data (vectorized)
+    dists = np.sqrt(np.sum((dataMinusTag - x) ** 2, axis=1))
     
-    # get the row indicies of the k nearest neighbors
-    neighbors = [key for i, key in enumerate(distances) if i < k]     
+    # creates a dataframe with distances corresponding to row indexes and sorts them
+    distances = pd.DataFrame(dists, index=data.index, columns=["dists"])
+    distances = distances.sort_values("dists")
+            
+    
+    # get the row indicies of the k nearest neighbors. Ignore first item
+    neighbors = [key.Index for i, key in enumerate(distances.itertuples()) if i <= k and i > 0]
     return mostCommonLabel(data, neighbors)
 
 def knnPredictions(data, k):
     confusion = initializeConfusion(data)
     predictions = []
     
-    # apparently itertuples does the same thing as iterrows but is much faster
+    # creates an np.array with the data minus the label column
+    dataMinusTag = np.array(data.iloc[:, data.columns != data.columns[-1]])
+                        
+    # itertuples is faster than iterrows. Also d[1:-1] takes out the row index and class label
     for d in data.itertuples():
-        pred = knn(data, k, d)
+        pred = knn(data, dataMinusTag, k, d[1:-1])
         actual = d[-1]
         predictions.append((d.Index, pred, actual))
     
@@ -128,10 +118,10 @@ def knnPredictions(data, k):
     accuracy = getStats(confusion, predictions)
     print(f"Accuracy of KNN with k = {k}: {accuracy:.4f}")
     print("Confusion Matrix")
-    print("Predicted \u2193, Actual \u2192")
+    print("Predicted = Horizontal, Actual = Vertical")
     print(confusion)
     
-# with heart.csv, k = 2 gives the best accuracy with 0.7026
+# with heart.csv, k = 9 gives the best accuracy with 0.8704
 if __name__ == "__main__":
     if len(sys.argv) == 3:
         _, datafile, k = sys.argv
